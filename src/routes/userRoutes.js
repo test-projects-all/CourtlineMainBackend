@@ -1,9 +1,15 @@
-const express = require("express");
-const { getUsers, createUser } = require("../controllers/userController");
-const auth = require("../middleware/authMiddleware");
+import express from 'express';
+import {getCourt,getSlot,bookSlot} from '../controllers/usersController.js';
 const router = express.Router();
 
-router.get("/",auth, getUsers);
-router.post("/", createUser);
 
-module.exports = router;
+router.get('/getCourts',getCourt);
+
+router.get('/getSlot/:courtId/:date',getSlot);
+
+router.post('/bookSlot',bookSlot);
+
+// router.get("/",auth, getUsers);
+// router.post("/", createUser);
+
+export default router;

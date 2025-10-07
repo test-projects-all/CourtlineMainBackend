@@ -1,13 +1,19 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
-const userRoutes = require('./routes/userRoutes');
-const authRoutes = require('./routes/authRoutes');
-const courtRoutes = require('./routes/courtRoutes');
+import express from 'express';
+import bodyParser from 'body-parser';
+import cors from 'cors';
+import userRoutes from './routes/userRoutes.js';
+// const authRoutes = require('./routes/authRoutes');
+// const courtRoutes = require('./routes/courtRoutes');
+import adminRoutes from './routes/adminRoute.js';
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: 'http://localhost:5173', // your frontend URL
+    credentials: true,               // allow cookies to be sent
+  })
+);
 app.use(bodyParser.json());
 app.use(express.json());
 
@@ -15,9 +21,11 @@ app.use(express.json());
 app.get('/', (req, res) => {
     res.json({ message: 'Courtline Backend API is running.' });
 });
-app.use('/api/users', userRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api', courtRoutes);
+
+app.use('/api/users', userRoutes); //not sure
+// app.use('/api/auth', authRoutes);
+// app.use('/api', courtRoutes);
+app.use('/api/admin',adminRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -25,4 +33,4 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
-module.exports = app;
+export default app;
