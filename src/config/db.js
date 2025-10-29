@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
-
+import Razorpay from 'razorpay';
+import dotenv from "dotenv";
+dotenv.config();
 
 // if (!uri) {
 	//   throw new Error('MONGO_URI is not defined. Check your .env file and dotenv setup!');
@@ -16,4 +18,9 @@ import mongoose from 'mongoose';
 		throw err;
 	}
 }
+
+export const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_SECRET,
+});
 

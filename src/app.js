@@ -2,15 +2,14 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import userRoutes from './routes/userRoutes.js';
-// const authRoutes = require('./routes/authRoutes');
-// const courtRoutes = require('./routes/courtRoutes');
+
 import adminRoutes from './routes/adminRoute.js';
 const app = express();
 
 // Middleware
 app.use(
   cors({
-    origin: 'http://localhost:5173', // your frontend URL
+    origin: ['http://localhost:5173','http://localhost:5174'], // your frontend URL
     credentials: true,               // allow cookies to be sent
   })
 );
