@@ -4,6 +4,7 @@ import cors from 'cors';
 import userRoutes from './routes/userRoutes.js';
 
 import adminRoutes from './routes/adminRoute.js';
+import authRoutes from './routes/authRoutes.js'
 const app = express();
 
 // Middleware
@@ -29,6 +30,7 @@ app.use('/api/users', userRoutes); //not sure
 // app.use('/api/auth', authRoutes);
 // app.use('/api', courtRoutes);
 app.use('/api/admin',adminRoutes)
+app.use("/auth", authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

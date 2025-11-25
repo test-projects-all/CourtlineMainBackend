@@ -522,7 +522,7 @@ export async function login(req, res) {
 
     // ✅ store token in HTTP-only cookie
     res.cookie("token", token, {
-      httpOnly: true, // prevents access via JavaScript
+      httpOnly: false, // prevents access via JavaScript
       secure: process.env.NODE_ENV === "production", // send only over HTTPS in production
       sameSite: "strict", // CSRF protection
       maxAge: 24 * 60 * 60 * 1000, // 1 day
@@ -530,9 +530,11 @@ export async function login(req, res) {
 
     // ✅ send minimal data back (no token)
     res.json({
-      success: true,
-      admin: { id: admin._id, username: admin.username },
-    });
+  success: true,
+  token,    // ADD THIS
+  admin: { id: admin._id, username: admin.username },
+});
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

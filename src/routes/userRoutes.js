@@ -14,6 +14,8 @@ router.post("/createOrder",createOrder);
 router.post("/verifyOrder", verifyOrder); 
 router.post("/newsletter-signup", newsletterSignup);
 router.post("/checkAvailability", checkAvailability);
+app.use("/auth", authRoutes);
+
 // router.get("/",auth, getUsers);
 // router.post("/", createUser);
 
