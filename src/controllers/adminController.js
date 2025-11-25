@@ -125,7 +125,7 @@ export async function todaysBookings(req, res) {
     const day = String(today.getDate()).padStart(2, '0');
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const year = today.getFullYear();
-    const formattedDate = `${year}-${month}-${day}`;
+    const formattedDate = `${day}-${month}-${year}`;
 
     // Find all bookings where any slot matches today’s date
     const bookings = await CourtBooking.find({ "slots.date": formattedDate });
@@ -150,14 +150,14 @@ export async function weeklyBookings(req, res) {
     const day = String(today.getDate()).padStart(2, "0");
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const year = today.getFullYear();
-    const formattedToday = `${year}-${month}-${day}`;
+    const formattedToday = `${day}-${month}-${year}`;
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(today.getDate() - 6);
     const day7 = String(sevenDaysAgo.getDate()).padStart(2, "0");
     const month7 = String(sevenDaysAgo.getMonth() + 1).padStart(2, "0");
     const year7 = sevenDaysAgo.getFullYear();
-    const formatted7DaysAgo = `${year7}-${month7}-${day7}`;
+    const formatted7DaysAgo = `${day7}-${month7}-${year7}`;
 
     // Query using string comparison
     const bookings = await CourtBooking.aggregate([
@@ -223,6 +223,18 @@ export async function editSlots(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+function parseDMY(dateStr) {
+  const [dd, mm, yyyy] = dateStr.split("-");
+  return new Date(`${yyyy}-${mm}-${dd}`);
+}
+
+function convertTo24(timeStr) {
+  const [time, period] = timeStr.split(" ");
+  let [h, m] = time.split(":").map(Number);
+  if (period === "PM" && h !== 12) h += 12;
+  if (period === "AM" && h === 12) h = 0;
+  return { hour: h, minute: m };
+}
 
 
 export async function getBookingsTillNow(req, res) {
@@ -235,7 +247,8 @@ export async function getBookingsTillNow(req, res) {
 
     const filteredBookings = allBookings.filter((booking) =>
       booking.slots.some((slot) => {
-        const slotDate = new Date(slot.date);
+        const [dd, mm, yyyy] = slot.date.split("-");
+        const slotDate = new Date(`${yyyy}-${mm}-${dd}`);
         slotDate.setHours(0, 0, 0, 0);
         return slotDate <= today;
       })
@@ -250,7 +263,6 @@ export async function getBookingsTillNow(req, res) {
       })),
     }));
 
-    console.log("Filtered Bookings with Court Names:", mappedBookings);
 
     res.json(mappedBookings);
   } catch (err) {
@@ -261,40 +273,82 @@ export async function getBookingsTillNow(req, res) {
 
 
 
+
+// export async function getUpcomingBookings(req, res) {
+//   try {
+//     const allBookings = await CourtBooking.find()
+//       .populate("slots.courtId", "name") // populate court name
+//       .lean();
+
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0); // normalize time
+
+//     const filteredBookings = allBookings.filter((booking) => {
+//       return booking.slots.some((slot) => {
+//          const [dd, mm, yyyy] = slot.date.split("-");
+//         const slotDate = new Date(`${yyyy}-${mm}-${dd}`);
+//         slotDate.setHours(0, 0, 0, 0);
+//         return slotDate >= today; // include today
+//       });
+//     });
+
+//     // Map bookings to include court name directly
+//     const mappedBookings = filteredBookings.map((booking) => ({
+//       ...booking,
+//       slots: booking.slots.map((slot) => ({
+//         ...slot,
+//         courtName: slot.courtId.name, // add courtName
+//       })),
+//     }));
+//     console.log("Upcoming Bookings:", mappedBookings);
+//     res.json(mappedBookings);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: err.message });
+//   }
+// }
 
 export async function getUpcomingBookings(req, res) {
   try {
     const allBookings = await CourtBooking.find()
-      .populate("slots.courtId", "name") // populate court name
+      .populate("slots.courtId", "name")
       .lean();
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // normalize time
+    const now = new Date();
 
-    const filteredBookings = allBookings.filter((booking) => {
+    const upcoming = allBookings.filter((booking) => {
       return booking.slots.some((slot) => {
-        const slotDate = new Date(slot.date); // yyyy-mm-dd
-        slotDate.setHours(0, 0, 0, 0);
-        return slotDate >= today; // include today
+        // 1. Parse the date
+        const slotDate = parseDMY(slot.date);
+        if (!slotDate) return false;
+
+        // 2. Extract end time from timeRange
+        const [start, end] = slot.timeRange.split(" - ");
+        const { hour, minute } = convertTo24(end);
+
+        // 3. Build full datetime
+        slotDate.setHours(hour, minute, 0, 0);
+
+        // 4. Compare full datetime, not just date
+        return slotDate.getTime() > now.getTime();
+
       });
     });
 
-    // Map bookings to include court name directly
-    const mappedBookings = filteredBookings.map((booking) => ({
+    const mapped = upcoming.map((booking) => ({
       ...booking,
       slots: booking.slots.map((slot) => ({
         ...slot,
-        courtName: slot.courtId.name, // add courtName
+        courtName: slot.courtId?.name,
       })),
     }));
-    console.log("Upcoming Bookings:", mappedBookings);
-    res.json(mappedBookings);
+
+    res.json(mapped);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 }
-
 
 
 // Return bookings count for each day of the current week
@@ -314,7 +368,7 @@ export async function weeklyAnalytics(req, res) {
       {
         $addFields: {
           bookingDate: {
-            $dateFromString: { dateString: "$slots.date", format: "%Y-%m-%d" },
+            $dateFromString: { dateString: "$slots.date", format: "%d-%m-%Y" },
           },
         },
       },
