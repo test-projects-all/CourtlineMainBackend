@@ -125,7 +125,7 @@ export async function todaysBookings(req, res) {
     const day = String(today.getDate()).padStart(2, '0');
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const year = today.getFullYear();
-    const formattedDate = `${year}-${month}-${day}`;
+    const formattedDate = `${day}-${month}-${year}`;
 
     // Find all bookings where any slot matches today’s date
     const bookings = await CourtBooking.find({ "slots.date": formattedDate });
@@ -150,14 +150,14 @@ export async function weeklyBookings(req, res) {
     const day = String(today.getDate()).padStart(2, "0");
     const month = String(today.getMonth() + 1).padStart(2, "0");
     const year = today.getFullYear();
-    const formattedToday = `${year}-${month}-${day}`;
+    const formattedToday = `${day}-${month}-${year}`;
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(today.getDate() - 6);
     const day7 = String(sevenDaysAgo.getDate()).padStart(2, "0");
     const month7 = String(sevenDaysAgo.getMonth() + 1).padStart(2, "0");
     const year7 = sevenDaysAgo.getFullYear();
-    const formatted7DaysAgo = `${year7}-${month7}-${day7}`;
+    const formatted7DaysAgo = `${day7}-${month7}-${year7}`;
 
     // Query using string comparison
     const bookings = await CourtBooking.aggregate([
@@ -313,33 +313,54 @@ export async function weeklyAnalytics(req, res) {
   try {
     // 1️⃣ Define start and end of week
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // include full today
+    today.setHours(23, 59, 59, 999);
 
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
     startOfWeek.setHours(0, 0, 0, 0);
 
-    // 2️⃣ Aggregate bookings
+    // 2️⃣ Aggregate bookings with date conversion from DD-MM-YYYY to YYYY-MM-DD
     const bookings = await CourtBooking.aggregate([
-      { $unwind: "$slots" }, // Flatten slots array
+      { $unwind: "$slots" },
+      {
+        $addFields: {
+          // Convert DD-MM-YYYY to YYYY-MM-DD format
+          convertedDate: {
+            $let: {
+              vars: {
+                dateParts: { $split: ["$slots.date", "-"] }
+              },
+              in: {
+                $concat: [
+                  { $arrayElemAt: ["$$dateParts", 2] }, // year
+                  "-",
+                  { $arrayElemAt: ["$$dateParts", 1] }, // month
+                  "-",
+                  { $arrayElemAt: ["$$dateParts", 0] }  // day
+                ]
+              }
+            }
+          }
+        }
+      },
       {
         $addFields: {
           bookingDate: {
-            $dateFromString: { dateString: "$slots.date", format: "%Y-%m-%d" },
-          },
-        },
+            $dateFromString: { dateString: "$convertedDate", format: "%Y-%m-%d" }
+          }
+        }
       },
       {
         $match: {
-          bookingDate: { $gte: startOfWeek, $lte: today },
-        },
+          bookingDate: { $gte: startOfWeek, $lte: today }
+        }
       },
       {
         $group: {
-          _id: { $dayOfWeek: "$bookingDate" }, // 1=Sunday, 7=Saturday
-          count: { $sum: 1 },
-        },
-      },
+          _id: { $dayOfWeek: "$bookingDate" },
+          count: { $sum: 1 }
+        }
+      }
     ]);
 
     // 3️⃣ Map Mongo dayOfWeek to labels
