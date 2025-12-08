@@ -9,7 +9,7 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: ['http://localhost:5173','http://localhost:5174','https://courtline.netlify.app','https://courtlineadminpanel.netlify.app','www.courtline.club','http://courtline.club'], // your frontend URL
+    origin: ['http://localhost:5173','http://localhost:5174','https://courtline.netlify.app','https://courtlineadminpanel.netlify.app','www.courtline.club','https://courtline.club'], // your frontend URL
     credentials: true,               // allow cookies to be sent
   })
 );
