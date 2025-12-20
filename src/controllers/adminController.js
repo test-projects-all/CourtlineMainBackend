@@ -548,7 +548,7 @@ export async function login(req, res) {
     // ✅ send minimal data back (no token)
     res.json({
       success: true,
-      admin: { id: admin._id, username: admin.username },
+      admin: { id: admin._id, username: admin.username, isAdmin:admin.isAdmin},
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
