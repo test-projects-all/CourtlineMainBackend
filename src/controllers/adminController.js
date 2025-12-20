@@ -273,31 +273,69 @@ export async function getBookingsTillNow(req, res) {
 
 
 
+// export async function getUpcomingBookings(req, res) {
+//   try {
+//     const allBookings = await CourtBooking.find()
+//       .populate("slots.courtId", "name") // populate court name
+//       .lean();
+
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0); // normalize time
+
+//     const filteredBookings = allBookings.filter((booking) => {
+//       return booking.slots.some((slot) => {
+//         const slotDate = new Date(slot.date); // yyyy-mm-dd
+//         slotDate.setHours(0, 0, 0, 0);
+//         return slotDate >= today; // include today
+//       });
+//     });
+
+//     // Map bookings to include court name directly
+//     const mappedBookings = filteredBookings.map((booking) => ({
+//       ...booking,
+//       slots: booking.slots.map((slot) => ({
+//         ...slot,
+//         courtName: slot.courtId.name, // add courtName
+//       })),
+//     }));
+//     console.log("Upcoming Bookings:", mappedBookings);
+//     res.json(mappedBookings);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: err.message });
+//   }
+// }
+
 export async function getUpcomingBookings(req, res) {
   try {
     const allBookings = await CourtBooking.find()
-      .populate("slots.courtId", "name") // populate court name
+      .populate("slots.courtId", "name")
       .lean();
 
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // normalize time
+    today.setHours(0, 0, 0, 0);
 
-    const filteredBookings = allBookings.filter((booking) => {
-      return booking.slots.some((slot) => {
-        const slotDate = new Date(slot.date); // yyyy-mm-dd
+    const filteredBookings = allBookings.filter((booking) =>
+      booking.slots.some((slot) => {
+        if (!slot.date) return false;
+
+        // ✅ convert DD-MM-YYYY → YYYY-MM-DD
+        const [day, month, year] = slot.date.split("-");
+        const slotDate = new Date(`${year}-${month}-${day}`);
         slotDate.setHours(0, 0, 0, 0);
-        return slotDate >= today; // include today
-      });
-    });
 
-    // Map bookings to include court name directly
+        return slotDate >= today;
+      })
+    );
+
     const mappedBookings = filteredBookings.map((booking) => ({
       ...booking,
       slots: booking.slots.map((slot) => ({
         ...slot,
-        courtName: slot.courtId.name, // add courtName
+        courtName: slot.courtId?.name || "N/A",
       })),
     }));
+
     console.log("Upcoming Bookings:", mappedBookings);
     res.json(mappedBookings);
   } catch (err) {
@@ -305,6 +343,7 @@ export async function getUpcomingBookings(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
 
 
 

@@ -4,12 +4,12 @@ const CourtBookingUser = require('../models/CourtBookingUser');
 const CourtSlot = require('../models/CourtSlot');
 
 
-
-
 // Demo Razorpay keys (replace with owner key in production)
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_1DP5mmOlF5G5ag',
-  key_secret: 'your_demo_secret'
+  // key_id: 'rzp_live_RtO4ovrxS3MthV', 
+  // key_secret: 'o0JkfKulnztbjAH6K8OMCiQM' 
+  key_id:'rzp_test_RTeubkNe4QzpAA',
+  key_secret:'mzlFxy0vDejk4Vch2f2vpjvw'
 });
 
 // POST /create-order
