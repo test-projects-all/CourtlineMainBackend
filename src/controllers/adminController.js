@@ -236,41 +236,123 @@ export async function editSlots(req, res) {
 }
 
 
+// export async function getBookingsTillNow(req, res) {
+//   try {
+//     // populate courtId to get court.name
+//     const allBookings = await CourtBooking.find().populate("slots.courtId").lean();
+
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0); // normalize time
+
+//     const filteredBookings = allBookings.filter((booking) =>
+//       booking.slots.some((slot) => {
+//         const slotDate = new Date(slot.date);
+//         slotDate.setHours(0, 0, 0, 0);
+//         return slotDate <= today;
+//       })
+//     );
+
+//     // Map slots to include courtName
+//     const mappedBookings = filteredBookings.map((booking) => ({
+//       ...booking,
+//       slots: booking.slots.map((slot) => ({
+//         ...slot,
+//         courtName: slot.courtName || slot.courtId?.name || "N/A",
+//       })),
+//     }));
+
+//     console.log("Filtered Bookings with Court Names:", mappedBookings);
+
+//     res.json(mappedBookings);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: err.message });
+//   }
+// }
+
+
+// export async function getBookingsTillNow(req, res) {
+//   try {
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+
+//     const allBookings = await CourtBooking.find()
+//       .populate("slots.courtId")
+//       .lean();
+
+//     const mappedBookings = allBookings
+//       .map((booking) => {
+//         const pastSlots = booking.slots.filter((slot) => {
+//           const slotDate = new Date(slot.date);
+//           slotDate.setHours(0, 0, 0, 0);
+//           return slotDate <= today;
+//         });
+
+//         if (pastSlots.length === 0) return null;
+
+//         return {
+//           ...booking,
+//           slots: pastSlots.map((slot) => ({
+//             ...slot,
+//             courtName: slot.courtId?.name || "N/A",
+//           })),
+//         };
+//       })
+//       .filter(Boolean); // remove null bookings
+
+//     console.log("History bookings:", mappedBookings.length);
+//     res.json(mappedBookings);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: err.message });
+//   }
+// }
+
+function parseDDMMYYYY(dateStr) {
+  if (!dateStr) return null;
+
+  const [day, month, year] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export async function getBookingsTillNow(req, res) {
   try {
-    // populate courtId to get court.name
-    const allBookings = await CourtBooking.find().populate("slots.courtId").lean();
-
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // normalize time
+    today.setHours(0, 0, 0, 0);
 
-    const filteredBookings = allBookings.filter((booking) =>
-      booking.slots.some((slot) => {
-        const slotDate = new Date(slot.date);
-        slotDate.setHours(0, 0, 0, 0);
-        return slotDate <= today;
+    const allBookings = await CourtBooking.find()
+      .populate("slots.courtId")
+      .lean();
+
+    const mappedBookings = allBookings
+      .map((booking) => {
+        const pastSlots = booking.slots.filter((slot) => {
+          const slotDate = parseDDMMYYYY(slot.date);
+          if (!slotDate) return false;
+
+          slotDate.setHours(0, 0, 0, 0);
+          return slotDate <= today;
+        });
+
+        if (pastSlots.length === 0) return null;
+
+        return {
+          ...booking,
+          slots: pastSlots.map((slot) => ({
+            ...slot,
+            courtName: slot.courtId?.name || "N/A",
+          })),
+        };
       })
-    );
+      .filter(Boolean);
 
-    // Map slots to include courtName
-    const mappedBookings = filteredBookings.map((booking) => ({
-      ...booking,
-      slots: booking.slots.map((slot) => ({
-        ...slot,
-        courtName: slot.courtName || slot.courtId?.name || "N/A",
-      })),
-    }));
-
-    console.log("Filtered Bookings with Court Names:", mappedBookings);
-
+    console.log("History bookings:", mappedBookings.length);
     res.json(mappedBookings);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
 }
-
-
 
 
 // export async function getUpcomingBookings(req, res) {
