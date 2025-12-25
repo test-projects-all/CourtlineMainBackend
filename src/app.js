@@ -1,17 +1,27 @@
-import express from 'express';
-import bodyParser from 'body-parser';
-import cors from 'cors';
-import userRoutes from './routes/userRoutes.js';
+import express from "express";
+import bodyParser from "body-parser";
+import cors from "cors";
+import userRoutes from "./routes/userRoutes.js";
 
-import adminRoutes from './routes/adminRoute.js';
+import adminRoutes from "./routes/adminRoute.js";
+import tournamentRoutes from "./routes/tournamentRoute.js";
 const app = express();
 
 // Middleware
 app.use(
   cors({
-    origin: ['http://localhost:5173','http://localhost:5174','https://courtline.netlify.app','https://courtlineadminpanel.netlify.app','https://www.courtline.club','https://courtline.club','https://admin-panel-frontend-tau.vercel.app','https://court-line-frontend.vercel.app'] ,   
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://courtline.netlify.app",
+      "https://courtlineadminpanel.netlify.app",
+      "https://www.courtline.club",
+      "https://courtline.club",
+      "https://admin-panel-frontend-tau.vercel.app",
+      "https://court-line-frontend.vercel.app",
+    ],
     // your frontend URL
-    credentials: true,               // allow cookies to be sent
+    credentials: true, // allow cookies to be sent
   })
 );
 
@@ -19,19 +29,19 @@ app.use(bodyParser.json());
 app.use(express.json());
 
 // Example route
-app.get('/', (req, res) => {
-    res.json({ message: 'Courtline Backend API is running.' });
+app.get("/", (req, res) => {
+  res.json({ message: "Courtline Backend API is running." });
 });
 
-app.use('/api/users', userRoutes); //not sure
+app.use("/api/users", userRoutes); //not sure
 // app.use('/api/auth', authRoutes);
 // app.use('/api', courtRoutes);
-app.use('/api/admin',adminRoutes)
-
+app.use("/api/admin", adminRoutes);
+app.use("/api/admin/tournament", tournamentRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
+  console.error(err.stack);
+  res.status(500).json({ error: "Something went wrong!" });
 });
 
 export default app;

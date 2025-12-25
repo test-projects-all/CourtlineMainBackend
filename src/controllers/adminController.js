@@ -1,12 +1,12 @@
-import Court from '../models/Court.js';
-import Slot from '../models/Slot.js';
-import CourtBooking from '../models/CourtBookingUser.js';
-import mongoose from 'mongoose';
-import Admin from '../models/Admin.js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import Court from "../models/Court.js";
+import Slot from "../models/Slot.js";
+import CourtBooking from "../models/CourtBookingUser.js";
+import mongoose from "mongoose";
+import Admin from "../models/Admin.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import Event from "../models/Event.js";
-import cloudinary from '../config/cloudinary.js';
+import cloudinary from "../config/cloudinary.js";
 
 export async function addCourt(req, res) {
   try {
@@ -14,13 +14,17 @@ export async function addCourt(req, res) {
 
     // Validate required fields
     if (!name || !startTime || !endTime || !length) {
-      return res.status(400).json({ error: 'name, startTime, endTime, and length are required' });
+      return res
+        .status(400)
+        .json({ error: "name, startTime, endTime, and length are required" });
     }
 
     // Validate active as string
-    const activeStr = enabled !== undefined ? String(enabled) : 'true';
-    if (!['true', 'false'].includes(activeStr)) {
-      return res.status(400).json({ error: 'active must be "true" or "false"' });
+    const activeStr = enabled !== undefined ? String(enabled) : "true";
+    if (!["true", "false"].includes(activeStr)) {
+      return res
+        .status(400)
+        .json({ error: 'active must be "true" or "false"' });
     }
 
     // Create court
@@ -32,13 +36,12 @@ export async function addCourt(req, res) {
       active: activeStr,
     });
 
-    res.status(201).json({ message: 'Court added', courtId: court._id });
+    res.status(201).json({ message: "Court added", courtId: court._id });
   } catch (err) {
-    console.error('Error in addCourt:', err.message);
+    console.error("Error in addCourt:", err.message);
     res.status(500).json({ error: err.message });
   }
 }
-
 
 export async function editCourt(req, res) {
   try {
@@ -46,24 +49,28 @@ export async function editCourt(req, res) {
 
     // Validate required fields
     if (!name || !startTime || !endTime || !length) {
-      return res.status(400).json({ error: 'name, startTime, endTime, and length are required' });
+      return res
+        .status(400)
+        .json({ error: "name, startTime, endTime, and length are required" });
     }
 
     // Validate court ID
     if (!id || !mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ error: 'Invalid court ID' });
+      return res.status(400).json({ error: "Invalid court ID" });
     }
 
     // Validate active as string
-    const activeStr = active !== undefined ? String(active) : 'true';
-    if (!['true', 'false'].includes(activeStr)) {
-      return res.status(400).json({ error: 'active must be "true" or "false"' });
+    const activeStr = active !== undefined ? String(active) : "true";
+    if (!["true", "false"].includes(activeStr)) {
+      return res
+        .status(400)
+        .json({ error: 'active must be "true" or "false"' });
     }
 
     // Find the existing court
     const court = await Court.findById(id);
     if (!court) {
-      return res.status(404).json({ error: 'Court not found' });
+      return res.status(404).json({ error: "Court not found" });
     }
 
     // Update court
@@ -80,11 +87,11 @@ export async function editCourt(req, res) {
     );
 
     res.status(200).json({
-      message: 'Court updated',
+      message: "Court updated",
       courtId: id,
     });
   } catch (err) {
-    console.error('Error in editCourt:', err.message);
+    console.error("Error in editCourt:", err.message);
     res.status(500).json({ error: err.message });
   }
 }
@@ -95,35 +102,34 @@ export async function deleteCourt(req, res) {
 
     // Validate court ID
     if (!id || !mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ error: 'Invalid court ID' });
+      return res.status(400).json({ error: "Invalid court ID" });
     }
 
     // Find the court
     const court = await Court.findById(id);
     if (!court) {
-      return res.status(404).json({ error: 'Court not found' });
+      return res.status(404).json({ error: "Court not found" });
     }
 
     // Delete the court
     await Court.findByIdAndDelete(id);
-    console.log('Deleted court:', id);
+    console.log("Deleted court:", id);
 
     res.status(200).json({
-      message: 'Court and associated slots deleted',
+      message: "Court and associated slots deleted",
       courtId: id,
     });
   } catch (err) {
-    console.error('Error in deleteCourt:', err.message);
+    console.error("Error in deleteCourt:", err.message);
     res.status(500).json({ error: err.message });
   }
 }
 
-
 export async function todaysBookings(req, res) {
   try {
     const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, "0");
+    const month = String(today.getMonth() + 1).padStart(2, "0");
     const year = today.getFullYear();
     const formattedDate = `${day}-${month}-${year}`;
 
@@ -140,9 +146,6 @@ export async function todaysBookings(req, res) {
     return res.status(500).json({ success: false, message: "Server Error" });
   }
 }
-
-
-
 
 export async function weeklyBookings(req, res) {
   try {
@@ -190,13 +193,12 @@ export async function weeklyBookings(req, res) {
   }
 }
 
-
 export async function editSlots(req, res) {
   try {
     const { courtId, slots, date } = req.body;
-    
-    console.log('editSlots request:', { courtId, slots, date });
-    
+
+    console.log("editSlots request:", { courtId, slots, date });
+
     // Validate required fields
     if (!courtId) {
       return res.status(400).json({ error: "courtId is required" });
@@ -210,14 +212,17 @@ export async function editSlots(req, res) {
 
     const updates = slots.map(async (s) => {
       const { time, price, active } = s;
-      
+
       if (!time) {
         throw new Error(`Missing time for slot: ${JSON.stringify(s)}`);
       }
-      console.log("worked")
+      console.log("worked");
       return await Slot.findOneAndUpdate(
         { courtId: String(courtId), timeRange: time, date },
-        { price: Number(price) || 0, status: Boolean(active) ? "available" : "inactive" },
+        {
+          price: Number(price) || 0,
+          status: Boolean(active) ? "available" : "inactive",
+        },
         { new: true, upsert: true }
       );
     });
@@ -226,15 +231,13 @@ export async function editSlots(req, res) {
 
     res.status(200).json({
       message: "Slots updated successfully",
-      slots: updatedSlots
+      slots: updatedSlots,
     });
-
   } catch (err) {
-    console.error('editSlots error:', err);
+    console.error("editSlots error:", err);
     res.status(500).json({ error: err.message });
   }
 }
-
 
 // export async function getBookingsTillNow(req, res) {
 //   try {
@@ -269,7 +272,6 @@ export async function editSlots(req, res) {
 //     res.status(500).json({ error: err.message });
 //   }
 // }
-
 
 // export async function getBookingsTillNow(req, res) {
 //   try {
@@ -354,7 +356,6 @@ export async function getBookingsTillNow(req, res) {
   }
 }
 
-
 // export async function getUpcomingBookings(req, res) {
 //   try {
 //     const allBookings = await CourtBooking.find()
@@ -426,9 +427,6 @@ export async function getUpcomingBookings(req, res) {
   }
 }
 
-
-
-
 // Return bookings count for each day of the current week
 export async function weeklyAnalytics(req, res) {
   try {
@@ -449,7 +447,7 @@ export async function weeklyAnalytics(req, res) {
           convertedDate: {
             $let: {
               vars: {
-                dateParts: { $split: ["$slots.date", "-"] }
+                dateParts: { $split: ["$slots.date", "-"] },
               },
               in: {
                 $concat: [
@@ -457,31 +455,34 @@ export async function weeklyAnalytics(req, res) {
                   "-",
                   { $arrayElemAt: ["$$dateParts", 1] }, // month
                   "-",
-                  { $arrayElemAt: ["$$dateParts", 0] }  // day
-                ]
-              }
-            }
-          }
-        }
+                  { $arrayElemAt: ["$$dateParts", 0] }, // day
+                ],
+              },
+            },
+          },
+        },
       },
       {
         $addFields: {
           bookingDate: {
-            $dateFromString: { dateString: "$convertedDate", format: "%Y-%m-%d" }
-          }
-        }
+            $dateFromString: {
+              dateString: "$convertedDate",
+              format: "%Y-%m-%d",
+            },
+          },
+        },
       },
       {
         $match: {
-          bookingDate: { $gte: startOfWeek, $lte: today }
-        }
+          bookingDate: { $gte: startOfWeek, $lte: today },
+        },
       },
       {
         $group: {
           _id: { $dayOfWeek: "$bookingDate" },
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     // 3️⃣ Map Mongo dayOfWeek to labels
@@ -500,7 +501,6 @@ export async function weeklyAnalytics(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
-
 
 // ✅ Slot Analytics
 export const slotAnalytics = async (req, res) => {
@@ -522,7 +522,7 @@ export const slotAnalytics = async (req, res) => {
       booking.slots.forEach((slot) => {
         if (!slot.timeRange) return;
 
-        const [start, end] = slot.timeRange.split(" - ").map(t => t.trim());
+        const [start, end] = slot.timeRange.split(" - ").map((t) => t.trim());
         if (!start || !end) return;
 
         let startTime = convertTo24Hour(start);
@@ -570,13 +570,11 @@ function convertTo24Hour(timeStr) {
   return hour;
 }
 
-
 export async function totalBooking(req, res) {
   try {
     const total = await CourtBooking.countDocuments();
     res.json({ totalBookings: total });
-  }
-  catch (err) {
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
@@ -594,13 +592,13 @@ export async function signup(req, res) {
 
     // create user
     const admin = await Admin.create({ username, password: hashedPassword });
-    console.log('Admin created:', admin);
+    console.log("Admin created:", admin);
     res.status(201).json({ message: "User registered successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
-    console.error('Error in signup:', err);
+    console.error("Error in signup:", err);
   }
-};
+}
 
 export async function login(req, res) {
   try {
@@ -630,7 +628,11 @@ export async function login(req, res) {
     // ✅ send minimal data back (no token)
     res.json({
       success: true,
-      admin: { id: admin._id, username: admin.username, isAdmin:admin.isAdmin},
+      admin: {
+        id: admin._id,
+        username: admin.username,
+        isAdmin: admin.isAdmin,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -639,25 +641,31 @@ export async function login(req, res) {
 
 export const addEvent = async (req, res) => {
   try {
-    const { title, description, type } = req.body;
+    const { title, description, type, amount, category } = req.body;
     const file = req.file;
 
-    if (!title || !type || !file) {
+    if (!title || !type || !file || !amount || !category) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     // Upload image to Cloudinary
-    const result = await cloudinary.uploader.upload(file.path, { folder: "events" });
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder: "events",
+    });
 
     const newEvent = new Event({
       title,
       description,
+      amount,
+      category,
       type,
       image: result.secure_url,
     });
 
     await newEvent.save();
-    res.status(201).json({ message: "Event added successfully", event: newEvent });
+    res
+      .status(201)
+      .json({ message: "Event added successfully", event: newEvent });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -674,18 +682,25 @@ export const editEvent = async (req, res) => {
     let updateData = { title, description };
 
     if (file) {
-      const result = await cloudinary.uploader.upload(file.path, { folder: "events" });
+      const result = await cloudinary.uploader.upload(file.path, {
+        folder: "events",
+      });
       updateData.image = result.secure_url;
     }
 
-    const updatedEvent = await Event.findByIdAndUpdate(id, updateData, { new: true });
+    const updatedEvent = await Event.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
 
-    if (!updatedEvent) return res.status(404).json({ message: "Event not found" });
+    if (!updatedEvent)
+      return res.status(404).json({ message: "Event not found" });
 
     res.status(200).json({ message: "Event updated", event: updatedEvent });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error updating event", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Error updating event", error: err.message });
   }
 };
 
@@ -701,6 +716,8 @@ export const deleteEvent = async (req, res) => {
 
     res.status(200).json({ message: "Event deleted successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Error deleting event", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting event", error: err.message });
   }
 };

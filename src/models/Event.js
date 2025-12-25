@@ -7,6 +7,8 @@ const eventSchema = new mongoose.Schema({
     required: true,
   },
   title: { type: String, required: true },
+  amount: { type: String, required: true },
+  category: { type: String, required: true },
   description: { type: String }, // only for upcoming events
   image: { type: String, required: true }, // image URL or base64 string
   createdAt: { type: Date, default: Date.now },
