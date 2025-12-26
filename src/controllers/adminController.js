@@ -653,11 +653,15 @@ export const addEvent = async (req, res) => {
       folder: "events",
     });
 
+     const categories = Array.isArray(category)
+      ? category
+      : category.split(",").map((c) => c.trim());
+
     const newEvent = new Event({
       title,
       description,
       amount,
-      category,
+      category: categories,
       type,
       image: result.secure_url,
     });
@@ -672,7 +676,6 @@ export const addEvent = async (req, res) => {
   }
 };
 
-// 🟠 Edit an event
 export const editEvent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -704,7 +707,6 @@ export const editEvent = async (req, res) => {
   }
 };
 
-// 🔴 Delete an event
 export const deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
