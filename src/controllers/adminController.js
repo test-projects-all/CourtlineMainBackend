@@ -193,35 +193,121 @@ export async function weeklyBookings(req, res) {
   }
 }
 
+// export async function editSlots(req, res) {
+//   try {
+//     const {
+//       courtId,
+//       slots,
+//       FromDate,
+//       ToDate,
+
+//       // date
+//     } = req.body;
+
+//     console.log("editSlots request:", {
+//       courtId,
+//       slots,
+//       FromDate,
+//       ToDate,
+//       // date
+//     });
+
+//     // Validate required fields
+//     if (!courtId) {
+//       return res.status(400).json({ error: "courtId is required" });
+//     }
+//     // if (!date) {
+//     //   return res.status(400).json({ error: "date is required" });
+//     // }
+//     if (!FromDate) {
+//       return res.status(400).json({ error: "From date is required" });
+//     }
+
+//     if (!ToDate) {
+//       return res.status(400).json({ error: "To date is required" });
+//     }
+
+//     if (!slots || !Array.isArray(slots) || slots.length === 0) {
+//       return res.status(400).json({ error: "No slots provided" });
+//     }
+
+//     const updates = slots.map(async (s) => {
+//       const { time, price, active } = s;
+
+//       if (!time) {
+//         throw new Error(`Missing time for slot: ${JSON.stringify(s)}`);
+//       }
+//       console.log("worked");
+
+// const existing = await Slot.findOne({
+//   courtId,
+//   timeRange: time,
+//   FromDate,
+//   ToDate,
+// });
+
+// if (existing && existing.status === "booked") {
+//   return existing; // do NOT modify booked slot
+// }
+
+//       return await Slot.findOneAndUpdate(
+//         {
+//           courtId: String(courtId),
+//           timeRange: time,
+//           FromDate,
+//           ToDate,
+//           // date
+//         },
+//         {
+//           price: Number(price) || 0,
+//           status: Boolean(active) ? "available" : "inactive",
+//         },
+//         { new: true, upsert: true }
+//       );
+//     });
+
+//     const updatedSlots = await Promise.all(updates);
+
+//     res.status(200).json({
+//       message: "Slots updated successfully",
+//       slots: updatedSlots,
+//     });
+//   } catch (err) {
+//     console.error("editSlots error:", err);
+//     res.status(500).json({ error: err.message });
+//   }
+// }
+
 export async function editSlots(req, res) {
   try {
-    const { courtId, slots, date } = req.body;
+    const { courtId, slots, FromDate, ToDate } = req.body;
 
-    console.log("editSlots request:", { courtId, slots, date });
-
-    // Validate required fields
-    if (!courtId) {
-      return res.status(400).json({ error: "courtId is required" });
-    }
-    if (!date) {
-      return res.status(400).json({ error: "date is required" });
-    }
-    if (!slots || !Array.isArray(slots) || slots.length === 0) {
+    if (!courtId) return res.status(400).json({ error: "courtId is required" });
+    if (!FromDate)
+      return res.status(400).json({ error: "From date is required" });
+    if (!ToDate) return res.status(400).json({ error: "To date is required" });
+    if (!Array.isArray(slots) || slots.length === 0)
       return res.status(400).json({ error: "No slots provided" });
-    }
 
-    const updates = slots.map(async (s) => {
-      const { time, price, active } = s;
+    const updates = slots.map(async ({ time, price, active }) => {
+      if (!time) throw new Error("Slot time missing");
 
-      if (!time) {
-        throw new Error(`Missing time for slot: ${JSON.stringify(s)}`);
+      const existing = await Slot.findOne({
+        courtId,
+        timeRange: time,
+        FromDate,
+        ToDate,
+      });
+
+      if (existing && existing.status === "booked") {
+        return existing; // protect booked slot
       }
-      console.log("worked");
-      return await Slot.findOneAndUpdate(
-        { courtId: String(courtId), timeRange: time, date },
+
+      return Slot.findOneAndUpdate(
+        { courtId, timeRange: time, FromDate, ToDate },
         {
           price: Number(price) || 0,
-          status: Boolean(active) ? "available" : "inactive",
+          status: active ? "available" : "inactive",
         },
         { new: true, upsert: true }
       );
@@ -229,13 +315,13 @@ export async function editSlots(req, res) {
 
     const updatedSlots = await Promise.all(updates);
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Slots updated successfully",
       slots: updatedSlots,
     });
   } catch (err) {
     console.error("editSlots error:", err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }
 
@@ -653,7 +739,7 @@ export const addEvent = async (req, res) => {
       folder: "events",
     });
 
-     const categories = Array.isArray(category)
+    const categories = Array.isArray(category)
       ? category
       : category.split(",").map((c) => c.trim());
 
