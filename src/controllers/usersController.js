@@ -2,11 +2,13 @@ import CourtBooking from "../models/CourtBookingUser.js";
 import Court from "../models/Court.js";
 import mongoose from "mongoose";
 import Slot from "../models/Slot.js";
-import Event from "../models/Event.js"
+import Event from "../models/Event.js";
 import Razorpay from "razorpay";
-import dotenv from "dotenv"
+import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import { google } from "googleapis";
+import crypto from "crypto";
+
 dotenv.config();
 
 const razorpay = new Razorpay({
@@ -15,13 +17,33 @@ const razorpay = new Razorpay({
 });
 
 export async function bookSlot(req, res) {
-  const { courtId, name, phone, email, slots, totalAmount, PaymentId, date, time, status } = req.body;
-  if (!courtId || !name || !phone || !email || !slots || !totalAmount || !PaymentId || !date || !time) {
-    return res.status(400).json({ error: 'All fields are required' });
+  const {
+    courtId,
+    name,
+    phone,
+    email,
+    slots,
+    totalAmount,
+    PaymentId,
+    date,
+    time,
+    status,
+  } = req.body;
+  if (
+    !courtId ||
+    !name ||
+    !phone ||
+    !email ||
+    !slots ||
+    !totalAmount ||
+    !PaymentId ||
+    !date ||
+    !time
+  ) {
+    return res.status(400).json({ error: "All fields are required" });
   }
 
   const court = await Court.findById(courtId);
-
 
   try {
     const newBooking = new CourtBooking({
@@ -35,10 +57,12 @@ export async function bookSlot(req, res) {
       PaymentId,
       date,
       time,
-      status
+      status,
     });
     const savedBooking = await newBooking.save();
-    res.status(201).json({ message: 'Booking successful', bookingId: savedBooking._id });
+    res
+      .status(201)
+      .json({ message: "Booking successful", bookingId: savedBooking._id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -53,7 +77,9 @@ export const getEvents = async (req, res) => {
     const events = await Event.find(filter).sort({ createdAt: -1 });
     res.status(200).json(events);
   } catch (err) {
-    res.status(500).json({ message: "Error fetching events", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching events", error: err.message });
   }
 };
 
@@ -108,7 +134,7 @@ export const getEvents = async (req, res) => {
 
 //       const [startH, startM, startAMPM] = parseTime(startTime);
 //       const [endH, endM, endAMPM] = parseTime(endTime);
-      
+
 //       // Convert minutes to hours and minutes
 //       const lengthInMinutes = parseInt(length);
 //       const slotH = Math.floor(lengthInMinutes / 60);
@@ -153,8 +179,6 @@ export const getEvents = async (req, res) => {
 
 //     const slotMap = new Map();
 //     dynamicSlots.forEach(s => slotMap.set(normalizeTimeStr(s.time), s));
-    
-
 
 //     // ✅ MARK BOOKED SLOTS
 //     bookings.forEach(booking => {
@@ -205,13 +229,6 @@ export const getEvents = async (req, res) => {
 //     res.status(500).json({ error: err.message });
 //   }
 // }
-
-
-
-
-
-
-
 
 // export async function getSlot(req, res) {
 //   try {
@@ -360,8 +377,6 @@ export const getEvents = async (req, res) => {
 //     res.status(500).json({ error: err.message });
 //   }
 // }
-
-
 
 // export async function getSlot(req, res) {
 //   try {
@@ -547,7 +562,6 @@ export const getEvents = async (req, res) => {
 //   }
 // }
 
-
 export async function getSlot(req, res) {
   try {
     const { courtId } = req.params;
@@ -589,8 +603,7 @@ export async function getSlot(req, res) {
     /* -------------------------------------------------------
        TIME HELPERS
     ------------------------------------------------------- */
-    const normalizeTimeStr = (str) =>
-      str.replace(/\s+/g, " ").trim();
+    const normalizeTimeStr = (str) => str.replace(/\s+/g, " ").trim();
 
     const formatTo12Hour = (h, m) => {
       const ampm = h >= 12 ? "PM" : "AM";
@@ -674,10 +687,7 @@ export async function getSlot(req, res) {
 
     bookings.forEach((booking) => {
       booking.slots.forEach((bs) => {
-        if (
-          bs.courtId.toString() === courtId &&
-          bs.date === formattedDate
-        ) {
+        if (bs.courtId.toString() === courtId && bs.date === formattedDate) {
           const key = normalizeTimeStr(bs.timeRange);
           if (slotMap.has(key)) {
             slotMap.set(key, {
@@ -739,7 +749,6 @@ export async function getSlot(req, res) {
   }
 }
 
-
 export async function getCourt(req, res) {
   try {
     const courts = await Court.find();
@@ -753,7 +762,7 @@ export async function getCourt(req, res) {
 export async function createOrder(req, res) {
   try {
     const { amount } = req.body;
-    console.log(amount)
+    console.log(amount);
     const options = {
       amount: amount, // paise
       currency: "INR",
@@ -768,9 +777,194 @@ export async function createOrder(req, res) {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to create order", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to create order", error: err.message });
   }
 }
+
+// export async function verifyOrder(req, res) {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const { paymentResponse, orderData } = req.body;
+//     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = paymentResponse;
+//     const { userId, totalPrice, activity, courts, formData } = orderData;
+
+//     // Transform courts array into slots array
+//     const slots = [];
+//     courts.forEach((court) => {
+//       court.dates.forEach((dateObj) => {
+//         dateObj.slots.forEach((slot) => {
+//           slots.push({
+//             courtId: court.courtId,
+//             date: dateObj.date,
+//             timeRange: slot.time,
+//             price: slot.price,
+//             status: 'booked',
+//           });
+//         });
+//       });
+//     });
+
+//     // ✅ CHECK IF ANY SLOT IS ALREADY BOOKED (Race Condition Prevention)
+//     const conflictingBookings = await CourtBooking.find({
+//       'slots.courtId': { $in: slots.map(s => s.courtId) },
+//       'slots.date': { $in: slots.map(s => s.date) },
+//       'slots.timeRange': { $in: slots.map(s => s.timeRange) },
+//       status: { $in: ['Paid', 'reserved'] }
+//     }).session(session);
+
+//     // Check for exact slot conflicts
+//     for (const booking of conflictingBookings) {
+//       for (const bookedSlot of booking.slots) {
+//         const conflict = slots.find(
+//           s => s.courtId.toString() === bookedSlot.courtId.toString() &&
+//             s.date === bookedSlot.date &&
+//             s.timeRange === bookedSlot.timeRange
+//         );
+
+//         if (conflict) {
+//           await session.abortTransaction();
+//           session.endSession();
+
+//           return res.status(409).json({
+//             success: false,
+//             message: `Slot ${conflict.timeRange} on ${conflict.date} is already booked. Please refresh and select another slot.`,
+//             conflictingSlot: conflict
+//           });
+//         }
+//       }
+//     }
+
+//     // ✅ CREATE BOOKING IF NO CONFLICTS
+//     const booking = new CourtBooking({
+//       name: formData.name,
+//       phone: formData.phone,
+//       email: formData.email,
+//       slots,
+//       totalAmount: totalPrice,
+//       paymentId: razorpay_payment_id,
+//       status: 'Paid'
+//     });
+
+//     await booking.save({ session });
+
+//     // Commit transaction
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     res.json({ success: true, booking });
+//   } catch (err) {
+//     await session.abortTransaction();
+//     session.endSession();
+
+//     console.error(err);
+//     res.status(500).json({
+//       success: false,
+//       message: "Payment verification failed",
+//       error: err.message,
+//     });
+//   }
+// }
+
+// export async function verifyOrder(req, res) {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const { paymentResponse, orderData } = req.body;
+//     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } =
+//       paymentResponse;
+
+//     const { totalPrice, courts, formData } = orderData;
+
+//     // 🔐 STEP 1: VERIFY RAZORPAY SIGNATURE (MANDATORY)
+//     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+//     const expectedSignature = crypto
+//       .createHmac("sha256", process.env.RAZORPAY_SECRET)
+//       .update(body)
+//       .digest("hex");
+
+//     if (expectedSignature !== razorpay_signature) {
+//       throw new Error("Invalid Razorpay signature");
+//     }
+
+//     // 🔁 STEP 2: IDEMPOTENCY CHECK (payment already used?)
+//     const existing = await CourtBooking.findOne(
+//       { paymentId: razorpay_payment_id },
+//       null,
+//       { session }
+//     );
+
+//     if (existing) {
+//       await session.commitTransaction();
+//       session.endSession();
+//       return res.json({ success: true, booking: existing });
+//     }
+
+//     // 🧱 STEP 3: BUILD SLOT LIST
+//     const slots = [];
+//     courts.forEach((court) => {
+//       court.dates.forEach((dateObj) => {
+//         dateObj.slots.forEach((slot) => {
+//           slots.push({
+//             courtId: court.courtId,
+//             date: dateObj.date,
+//             timeRange: slot.time || slot.timeRange,
+//             price: slot.price,
+//             status: "booked",
+//           });
+//         });
+//       });
+//     });
+
+//     // 🛑 STEP 4: HARD CONFLICT CHECK INSIDE TRANSACTION
+//     const conflicts = await CourtBooking.find({
+//       "slots.courtId": { $in: slots.map((s) => s.courtId) },
+//       "slots.date": { $in: slots.map((s) => s.date) },
+//       "slots.timeRange": { $in: slots.map((s) => s.timeRange) },
+//       status: { $in: ["Paid", "reserved"] },
+//     }).session(session);
+
+//     if (conflicts.length > 0) {
+//       throw new Error("Slot already booked");
+//     }
+
+//     // ✅ STEP 5: CREATE BOOKING (ATOMIC)
+//     const booking = new CourtBooking({
+//       name: formData.name,
+//       phone: formData.phone,
+//       email: formData.email,
+//       slots,
+//       totalAmount: totalPrice,
+//       paymentId: razorpay_payment_id,
+//       status: "Paid",
+//     });
+
+//     await booking.save({ session });
+
+
+
+    
+//     // 💾 COMMIT
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     return res.json({ success: true, booking });
+//   } catch (err) {
+//     await session.abortTransaction();
+//     session.endSession();
+
+//     console.error("verifyOrder error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//     });
+//   }
+// }
+
 
 
 export async function verifyOrder(req, res) {
@@ -779,10 +973,45 @@ export async function verifyOrder(req, res) {
 
   try {
     const { paymentResponse, orderData } = req.body;
-    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = paymentResponse;
-    const { userId, totalPrice, activity, courts, formData } = orderData;
+    const {
+      razorpay_payment_id,
+      razorpay_order_id,
+      razorpay_signature,
+    } = paymentResponse;
 
-    // Transform courts array into slots array
+    const { totalPrice, courts, formData } = orderData;
+
+    /* -------------------------------------------------------
+       1️⃣ VERIFY RAZORPAY SIGNATURE (SECURITY)
+    ------------------------------------------------------- */
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      throw new Error("Invalid Razorpay signature");
+    }
+
+    /* -------------------------------------------------------
+       2️⃣ IDEMPOTENCY CHECK (PREVENT DUPLICATES)
+    ------------------------------------------------------- */
+    const existingBooking = await CourtBooking.findOne(
+      { paymentId: razorpay_payment_id },
+      null,
+      { session }
+    );
+
+    if (existingBooking) {
+      await session.commitTransaction();
+      session.endSession();
+      return res.json({ success: true, booking: existingBooking });
+    }
+
+    /* -------------------------------------------------------
+       3️⃣ BUILD SLOT LIST (CANONICAL)
+    ------------------------------------------------------- */
     const slots = [];
     courts.forEach((court) => {
       court.dates.forEach((dateObj) => {
@@ -790,45 +1019,31 @@ export async function verifyOrder(req, res) {
           slots.push({
             courtId: court.courtId,
             date: dateObj.date,
-            timeRange: slot.time,
+            timeRange: slot.time || slot.timeRange,
             price: slot.price,
-            status: 'booked',
+            status: "booked",
           });
         });
       });
     });
 
-    // ✅ CHECK IF ANY SLOT IS ALREADY BOOKED (Race Condition Prevention)
-    const conflictingBookings = await CourtBooking.find({
-      'slots.courtId': { $in: slots.map(s => s.courtId) },
-      'slots.date': { $in: slots.map(s => s.date) },
-      'slots.timeRange': { $in: slots.map(s => s.timeRange) },
-      status: { $in: ['Paid', 'reserved'] }
+    /* -------------------------------------------------------
+       4️⃣ HARD CONFLICT CHECK (RACE CONDITION SAFE)
+    ------------------------------------------------------- */
+    const conflicts = await CourtBooking.find({
+      "slots.courtId": { $in: slots.map((s) => s.courtId) },
+      "slots.date": { $in: slots.map((s) => s.date) },
+      "slots.timeRange": { $in: slots.map((s) => s.timeRange) },
+      status: { $in: ["Paid", "reserved"] },
     }).session(session);
 
-    // Check for exact slot conflicts
-    for (const booking of conflictingBookings) {
-      for (const bookedSlot of booking.slots) {
-        const conflict = slots.find(
-          s => s.courtId.toString() === bookedSlot.courtId.toString() &&
-            s.date === bookedSlot.date &&
-            s.timeRange === bookedSlot.timeRange
-        );
-
-        if (conflict) {
-          await session.abortTransaction();
-          session.endSession();
-
-          return res.status(409).json({
-            success: false,
-            message: `Slot ${conflict.timeRange} on ${conflict.date} is already booked. Please refresh and select another slot.`,
-            conflictingSlot: conflict
-          });
-        }
-      }
+    if (conflicts.length > 0) {
+      throw new Error("Slot already booked by another user");
     }
 
-    // ✅ CREATE BOOKING IF NO CONFLICTS
+    /* -------------------------------------------------------
+       5️⃣ CREATE BOOKING (ATOMIC)
+    ------------------------------------------------------- */
     const booking = new CourtBooking({
       name: formData.name,
       phone: formData.phone,
@@ -836,35 +1051,83 @@ export async function verifyOrder(req, res) {
       slots,
       totalAmount: totalPrice,
       paymentId: razorpay_payment_id,
-      status: 'Paid'
+      status: "Paid",
     });
 
     await booking.save({ session });
 
-    // Commit transaction
+    /* -------------------------------------------------------
+       6️⃣ COMMIT TRANSACTION (DATA IS FINAL)
+    ------------------------------------------------------- */
     await session.commitTransaction();
     session.endSession();
 
-    res.json({ success: true, booking });
+    /* -------------------------------------------------------
+       7️⃣ SEND CONFIRMATION EMAIL (POST-COMMIT)
+    ------------------------------------------------------- */
+    try {
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.GMAIL_USER_MAIL,
+          pass: process.env.GMAIL_APP_PASSWORD,
+        },
+      });
+
+      const slotHtml = slots
+        .map(
+          (s) =>
+            `<li>
+              <b>Court:</b> ${s.courtId}<br/>
+              <b>Date:</b> ${s.date}<br/>
+              <b>Time:</b> ${s.timeRange}
+            </li>`
+        )
+        .join("");
+
+      await transporter.sendMail({
+        from: `Courtline <${process.env.GMAIL_USER}>`,
+        to: formData.email,
+        subject: "🎾 Court Booking Confirmed",
+        html: `
+          <h2>Hi ${formData.name},</h2>
+          <p>Your court booking is <b>confirmed</b> ✅</p>
+          <ul>${slotHtml}</ul>
+          <p><b>Total Paid:</b> ₹${totalPrice}</p>
+          <p>See you on the court! 🏸</p>
+          <p><b>Team Courtline</b></p>
+        `,
+      });
+      console.log("Email send.............")
+    } catch (mailErr) {
+      console.error("Email failed (booking safe):", mailErr.message);
+    }
+
+    /* -------------------------------------------------------
+       8️⃣ FINAL RESPONSE
+    ------------------------------------------------------- */
+    return res.json({ success: true, booking });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
 
-    console.error(err);
-    res.status(500).json({
+    console.error("verifyOrder error:", err.message);
+    return res.status(500).json({
       success: false,
-      message: "Payment verification failed",
-      error: err.message,
+      message: err.message,
     });
   }
 }
+
 
 export async function newsletterSignup(req, res) {
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
     }
 
     const oAuth2Client = new google.auth.OAuth2(
@@ -874,7 +1137,7 @@ export async function newsletterSignup(req, res) {
     );
 
     oAuth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
     });
 
     const accessToken = await oAuth2Client.getAccessToken();
@@ -896,7 +1159,7 @@ export async function newsletterSignup(req, res) {
     const mailOptions = {
       from: `Courtline <${process.env.GMAIL_USER}>`,
       to: email,
-      subject: 'Welcome to Courtline Community! 🎾',
+      subject: "Welcome to Courtline Community! 🎾",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #76B73A;">Welcome to Courtline! 🎾</h2>
@@ -911,16 +1174,15 @@ export async function newsletterSignup(req, res) {
           <p>See you on the court!</p>
           <p><strong>Team Courtline</strong></p>
         </div>
-      `
+      `,
     };
 
     await transporter.sendMail(mailOptions);
-    res.json({ success: true, message: 'Welcome email sent successfully!' });
-
+    res.json({ success: true, message: "Welcome email sent successfully!" });
   } catch (error) {
-   console.error('Newsletter signup error:', error.response?.data || error);
+    console.error("Newsletter signup error:", error.response?.data || error);
 
-    res.status(500).json({ success: false, message: 'Failed to send email' });
+    res.status(500).json({ success: false, message: "Failed to send email" });
   }
 }
 
@@ -928,13 +1190,13 @@ export async function checkAvailability(req, res) {
   const { courts } = req.body;
 
   const slots = [];
-  courts.forEach(court => {
-    court.dates.forEach(dateObj => {
-      dateObj.slots.forEach(slot => {
+  courts.forEach((court) => {
+    court.dates.forEach((dateObj) => {
+      dateObj.slots.forEach((slot) => {
         slots.push({
           courtId: court.courtId,
           date: dateObj.date,
-          timeRange: slot.time
+          timeRange: slot.time || slot.timeRange,
         });
       });
     });
@@ -942,10 +1204,10 @@ export async function checkAvailability(req, res) {
 
   // Check existing bookings
   const booked = await CourtBooking.find({
-    'slots.courtId': { $in: slots.map(s => s.courtId) },
-    'slots.date': { $in: slots.map(s => s.date) },
-    'slots.timeRange': { $in: slots.map(s => s.timeRange) },
-    status: { $in: ['Paid', 'reserved'] }
+    "slots.courtId": { $in: slots.map((s) => s.courtId) },
+    "slots.date": { $in: slots.map((s) => s.date) },
+    "slots.timeRange": { $in: slots.map((s) => s.timeRange) },
+    status: { $in: ["Paid", "reserved"] },
   });
 
   if (booked.length > 0) {
