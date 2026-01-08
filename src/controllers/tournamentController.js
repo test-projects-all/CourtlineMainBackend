@@ -109,9 +109,9 @@ import razorpay from "../utils/razorpay.js";
 
 export const postTournament = async (req, res) => {
   try {
-    const { name, gender, phone, email, category, amount } = req.body;
+    const { name, gender, phone, email, category, amount,title } = req.body;
 
-    if (!name || !gender || !phone || !email || !category || !amount) {
+    if (!name || !gender || !phone || !email || !category || !amount || !title) {
       return res.status(400).json({ message: "Missing required fields" });
     }
     
@@ -126,6 +126,7 @@ export const postTournament = async (req, res) => {
         amount: Number(amount), 
         status: "PENDING",
       },
+      title,
     });
 
     const order = await razorpay.orders.create({
@@ -142,6 +143,7 @@ export const postTournament = async (req, res) => {
       tournamentId: tournament._id,
       orderId: order.id,
       amount,
+      title,
       key: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error) {

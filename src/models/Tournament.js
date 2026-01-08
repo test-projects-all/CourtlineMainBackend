@@ -93,6 +93,7 @@ const tournamentSchema = new mongoose.Schema(
         default: "PENDING",
       },
     },
+    title: { type: String, required: true },
   },
   { timestamps: true }
 );
