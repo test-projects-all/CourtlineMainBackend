@@ -16,6 +16,59 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_SECRET,
 });
 
+// export async function bookSlot(req, res) {
+//   const {
+//     courtId,
+//     name,
+//     phone,
+//     email,
+//     slots,
+//     totalAmount,
+//     PaymentId,
+//     date,
+//     time,
+//     status,
+//   } = req.body;
+//   if (
+//     !courtId ||
+//     !name ||
+//     !phone ||
+//     !email ||
+//     !slots ||
+//     !totalAmount ||
+//     !PaymentId ||
+//     !date ||
+//     !time
+//   ) {
+//     return res.status(400).json({ error: "All fields are required" });
+//   }
+
+//   const court = await Court.findById(courtId);
+
+//   try {
+//     const newBooking = new CourtBooking({
+//       courtId,
+//       courtName,
+//       name,
+//       phone,
+//       email,
+//       slots,
+//       totalAmount,
+//       PaymentId,
+//       date,
+//       time,
+//       status,
+//     });
+//     const savedBooking = await newBooking.save();
+//     res
+//       .status(201)
+//       .json({ message: "Booking successful", bookingId: savedBooking._id });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// }
+
+
 export async function bookSlot(req, res) {
   const {
     courtId,
@@ -29,6 +82,7 @@ export async function bookSlot(req, res) {
     time,
     status,
   } = req.body;
+
   if (
     !courtId ||
     !name ||
@@ -43,12 +97,13 @@ export async function bookSlot(req, res) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
-  const court = await Court.findById(courtId);
-
   try {
+    const courtName =
+      COURT_NAME_MAP[courtId.toString()] || "Unknown Court";
+
     const newBooking = new CourtBooking({
       courtId,
-      courtName,
+      courtName, // ✅ now defined
       name,
       phone,
       email,
@@ -59,10 +114,13 @@ export async function bookSlot(req, res) {
       time,
       status,
     });
+
     const savedBooking = await newBooking.save();
-    res
-      .status(201)
-      .json({ message: "Booking successful", bookingId: savedBooking._id });
+
+    res.status(201).json({
+      message: "Booking successful",
+      bookingId: savedBooking._id,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -967,6 +1025,308 @@ export async function createOrder(req, res) {
 
 
 
+// export async function verifyOrder(req, res) {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const { paymentResponse, orderData } = req.body;
+//     const {
+//       razorpay_payment_id,
+//       razorpay_order_id,
+//       razorpay_signature,
+//     } = paymentResponse;
+
+//     const { totalPrice, courts, formData } = orderData;
+
+//     /* -------------------------------------------------------
+//        1️⃣ VERIFY RAZORPAY SIGNATURE (SECURITY)
+//     ------------------------------------------------------- */
+//     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+//     const expectedSignature = crypto
+//       .createHmac("sha256", process.env.RAZORPAY_SECRET)
+//       .update(body)
+//       .digest("hex");
+
+//     if (expectedSignature !== razorpay_signature) {
+//       throw new Error("Invalid Razorpay signature");
+//     }
+
+//     /* -------------------------------------------------------
+//        2️⃣ IDEMPOTENCY CHECK (PREVENT DUPLICATES)
+//     ------------------------------------------------------- */
+//     const existingBooking = await CourtBooking.findOne(
+//       { paymentId: razorpay_payment_id },
+//       null,
+//       { session }
+//     );
+
+//     if (existingBooking) {
+//       await session.commitTransaction();
+//       session.endSession();
+//       return res.json({ success: true, booking: existingBooking });
+//     }
+
+//     /* -------------------------------------------------------
+//        3️⃣ BUILD SLOT LIST (CANONICAL)
+//     ------------------------------------------------------- */
+//     const slots = [];
+//     courts.forEach((court) => {
+//       court.dates.forEach((dateObj) => {
+//         dateObj.slots.forEach((slot) => {
+//           slots.push({
+//             courtId: court.courtId,
+//             date: dateObj.date,
+//             timeRange: slot.time || slot.timeRange,
+//             price: slot.price,
+//             status: "booked",
+//           });
+//         });
+//       });
+//     });
+
+//     /* -------------------------------------------------------
+//        4️⃣ HARD CONFLICT CHECK (RACE CONDITION SAFE)
+//     ------------------------------------------------------- */
+//     const conflicts = await CourtBooking.find({
+//       "slots.courtId": { $in: slots.map((s) => s.courtId) },
+//       "slots.date": { $in: slots.map((s) => s.date) },
+//       "slots.timeRange": { $in: slots.map((s) => s.timeRange) },
+//       status: { $in: ["Paid", "reserved"] },
+//     }).session(session);
+
+//     if (conflicts.length > 0) {
+//       throw new Error("Slot already booked by another user");
+//     }
+
+//     /* -------------------------------------------------------
+//        5️⃣ CREATE BOOKING (ATOMIC)
+//     ------------------------------------------------------- */
+//     const booking = new CourtBooking({
+//       name: formData.name,
+//       phone: formData.phone,
+//       email: formData.email,
+//       slots,
+//       totalAmount: totalPrice,
+//       paymentId: razorpay_payment_id,
+//       status: "Paid",
+//     });
+
+//     await booking.save({ session });
+
+//     /* -------------------------------------------------------
+//        6️⃣ COMMIT TRANSACTION (DATA IS FINAL)
+//     ------------------------------------------------------- */
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     /* -------------------------------------------------------
+//        7️⃣ SEND CONFIRMATION EMAIL (POST-COMMIT)
+//     ------------------------------------------------------- */
+//     try {
+//       const transporter = nodemailer.createTransport({
+//         service: "gmail",
+//         auth: {
+//           user: process.env.GMAIL_USER_MAIL,
+//           pass: process.env.GMAIL_APP_PASSWORD,
+//         },
+//       });
+
+//       const slotHtml = slots
+//         .map(
+//           (s) =>
+//             `<li>
+//               <b>Court:</b> ${s.courtId}<br/>
+//               <b>Date:</b> ${s.date}<br/>
+//               <b>Time:</b> ${s.timeRange}
+//             </li>`
+//         )
+//         .join("");
+
+//       await transporter.sendMail({
+//         from: `Courtline <${process.env.GMAIL_USER}>`,
+//         to: formData.email,
+//         subject: "🎾 Court Booking Confirmed",
+//         html: `
+//           <h2>Hi ${formData.name},</h2>
+//           <p>Your court booking is <b>confirmed</b> ✅</p>
+//           <ul>${slotHtml}</ul>
+//           <p><b>Total Paid:</b> ₹${totalPrice}</p>
+//           <p>See you on the court! 🏸</p>
+//           <p><b>Team Courtline</b></p>
+//         `,
+//       });
+//       console.log("Email send.............")
+//     } catch (mailErr) {
+//       console.error("Email failed (booking safe):", mailErr.message);
+//     }
+
+//     /* -------------------------------------------------------
+//        8️⃣ FINAL RESPONSE
+//     ------------------------------------------------------- */
+//     return res.json({ success: true, booking });
+//   } catch (err) {
+//     await session.abortTransaction();
+//     session.endSession();
+
+//     console.error("verifyOrder error:", err.message);
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//     });
+//   }
+// }
+
+// import crypto from "crypto";
+// import mongoose from "mongoose";
+// import nodemailer from "nodemailer";
+// import CourtBooking from "../models/CourtBooking.js";
+
+/* -----------------------------------------
+   COURT ID → COURT NAME MAP (EMAIL ONLY)
+----------------------------------------- */
+const COURT_NAME_MAP = {
+  "6949260ff11e456cff9bb735": "Court 1",
+  "69492643f11e456cff9bb76f": "Court 2",
+};
+
+// export async function verifyOrder(req, res) {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const { paymentResponse, orderData } = req.body;
+//     const {
+//       razorpay_payment_id,
+//       razorpay_order_id,
+//       razorpay_signature,
+//     } = paymentResponse;
+
+//     const { totalPrice, courts, formData } = orderData;
+
+//     /* 1️⃣ VERIFY SIGNATURE */
+//     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+//     const expectedSignature = crypto
+//       .createHmac("sha256", process.env.RAZORPAY_SECRET)
+//       .update(body)
+//       .digest("hex");
+
+//     if (expectedSignature !== razorpay_signature) {
+//       throw new Error("Invalid Razorpay signature");
+//     }
+
+//     /* 2️⃣ IDEMPOTENCY */
+//     const existingBooking = await CourtBooking.findOne(
+//       { paymentId: razorpay_payment_id },
+//       null,
+//       { session }
+//     );
+
+//     if (existingBooking) {
+//       await session.commitTransaction();
+//       session.endSession();
+//       return res.json({ success: true, booking: existingBooking });
+//     }
+
+//     /* 3️⃣ BUILD SLOTS */
+//     const slots = [];
+//     courts.forEach((court) => {
+//       court.dates.forEach((dateObj) => {
+//         dateObj.slots.forEach((slot) => {
+//           slots.push({
+//             courtId: court.courtId,
+//             date: dateObj.date,
+//             timeRange: slot.time || slot.timeRange,
+//             price: slot.price,
+//             status: "booked",
+//           });
+//         });
+//       });
+//     });
+
+//     /* 4️⃣ CONFLICT CHECK */
+//     const conflicts = await CourtBooking.find({
+//       "slots.courtId": { $in: slots.map((s) => s.courtId) },
+//       "slots.date": { $in: slots.map((s) => s.date) },
+//       "slots.timeRange": { $in: slots.map((s) => s.timeRange) },
+//       status: { $in: ["Paid", "reserved"] },
+//     }).session(session);
+
+//     if (conflicts.length > 0) {
+//       throw new Error("Slot already booked by another user");
+//     }
+
+//     /* 5️⃣ CREATE BOOKING */
+//     const booking = new CourtBooking({
+//       name: formData.name,
+//       phone: formData.phone,
+//       email: formData.email,
+//       slots,
+//       totalAmount: totalPrice,
+//       paymentId: razorpay_payment_id,
+//       status: "Paid",
+//     });
+
+//     await booking.save({ session });
+
+//     /* 6️⃣ COMMIT */
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     /* 7️⃣ EMAIL */
+//     try {
+//       const transporter = nodemailer.createTransport({
+//         service: "gmail",
+//         auth: {
+//           user: process.env.GMAIL_USER_MAIL,
+//           pass: process.env.GMAIL_APP_PASSWORD,
+//         },
+//       });
+
+//       const slotHtml = slots
+//         .map((s) => {
+//           const courtName =
+//             COURT_NAME_MAP[s.courtId.toString()] || "Unknown Court";
+
+//           return `
+//             <li>
+//               <b>Court:</b> ${courtName}<br/>
+//               <b>Date:</b> ${s.date}<br/>
+//               <b>Time:</b> ${s.timeRange}
+//             </li>
+//           `;
+//         })
+//         .join("");
+
+//       await transporter.sendMail({
+//         from: `Courtline <${process.env.GMAIL_USER_MAIL}>`,
+//         to: formData.email,
+//         subject: "🎾 Court Booking Confirmed",
+//         html: `
+//           <h2>Hi ${formData.name},</h2>
+//           <p>Your court booking is <b>confirmed</b> ✅</p>
+//           <ul>${slotHtml}</ul>
+//           <p><b>Total Paid:</b> ₹${totalPrice}</p>
+//           <p>See you on the court! 🏸</p>
+//           <p><b>Team Courtline</b></p>
+//         `,
+//       });
+//     } catch (err) {
+//       console.error("Email failed (booking safe):", err.message);
+//     }
+
+//     return res.json({ success: true, booking });
+//   } catch (err) {
+//     await session.abortTransaction();
+//     session.endSession();
+
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//     });
+//   }
+// }
+
 export async function verifyOrder(req, res) {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -981,9 +1341,9 @@ export async function verifyOrder(req, res) {
 
     const { totalPrice, courts, formData } = orderData;
 
-    /* -------------------------------------------------------
-       1️⃣ VERIFY RAZORPAY SIGNATURE (SECURITY)
-    ------------------------------------------------------- */
+    /* ----------------------------------
+       1️⃣ VERIFY RAZORPAY SIGNATURE
+    ---------------------------------- */
     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_SECRET)
@@ -994,24 +1354,9 @@ export async function verifyOrder(req, res) {
       throw new Error("Invalid Razorpay signature");
     }
 
-    /* -------------------------------------------------------
-       2️⃣ IDEMPOTENCY CHECK (PREVENT DUPLICATES)
-    ------------------------------------------------------- */
-    const existingBooking = await CourtBooking.findOne(
-      { paymentId: razorpay_payment_id },
-      null,
-      { session }
-    );
-
-    if (existingBooking) {
-      await session.commitTransaction();
-      session.endSession();
-      return res.json({ success: true, booking: existingBooking });
-    }
-
-    /* -------------------------------------------------------
-       3️⃣ BUILD SLOT LIST (CANONICAL)
-    ------------------------------------------------------- */
+    /* ----------------------------------
+       2️⃣ BUILD SLOT LIST (CANONICAL)
+    ---------------------------------- */
     const slots = [];
     courts.forEach((court) => {
       court.dates.forEach((dateObj) => {
@@ -1027,10 +1372,34 @@ export async function verifyOrder(req, res) {
       });
     });
 
-    /* -------------------------------------------------------
-       4️⃣ HARD CONFLICT CHECK (RACE CONDITION SAFE)
-    ------------------------------------------------------- */
+    /* ----------------------------------
+       3️⃣ IDEMPOTENT UPSERT (NO DATA LOSS)
+    ---------------------------------- */
+    const booking = await CourtBooking.findOneAndUpdate(
+      { paymentId: razorpay_payment_id },
+      {
+        $setOnInsert: {
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          slots,
+          totalAmount: totalPrice,
+          paymentId: razorpay_payment_id,
+          status: "Paid",
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        session,
+      }
+    );
+
+    /* ----------------------------------
+       4️⃣ HARD CONFLICT CHECK
+    ---------------------------------- */
     const conflicts = await CourtBooking.find({
+      _id: { $ne: booking._id },
       "slots.courtId": { $in: slots.map((s) => s.courtId) },
       "slots.date": { $in: slots.map((s) => s.date) },
       "slots.timeRange": { $in: slots.map((s) => s.timeRange) },
@@ -1041,72 +1410,55 @@ export async function verifyOrder(req, res) {
       throw new Error("Slot already booked by another user");
     }
 
-    /* -------------------------------------------------------
-       5️⃣ CREATE BOOKING (ATOMIC)
-    ------------------------------------------------------- */
-    const booking = new CourtBooking({
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      slots,
-      totalAmount: totalPrice,
-      paymentId: razorpay_payment_id,
-      status: "Paid",
-    });
-
-    await booking.save({ session });
-
-    /* -------------------------------------------------------
-       6️⃣ COMMIT TRANSACTION (DATA IS FINAL)
-    ------------------------------------------------------- */
+    /* ----------------------------------
+       5️⃣ COMMIT TRANSACTION
+    ---------------------------------- */
     await session.commitTransaction();
     session.endSession();
 
-    /* -------------------------------------------------------
-       7️⃣ SEND CONFIRMATION EMAIL (POST-COMMIT)
-    ------------------------------------------------------- */
-    try {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.GMAIL_USER_MAIL,
-          pass: process.env.GMAIL_APP_PASSWORD,
-        },
-      });
+    /* ----------------------------------
+       6️⃣ SEND EMAIL (ASYNC — NEVER BLOCK)
+    ---------------------------------- */
+    (async () => {
+      try {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.GMAIL_USER_MAIL,
+            pass: process.env.GMAIL_APP_PASSWORD,
+          },
+        });
 
-      const slotHtml = slots
-        .map(
-          (s) =>
-            `<li>
-              <b>Court:</b> ${s.courtId}<br/>
-              <b>Date:</b> ${s.date}<br/>
-              <b>Time:</b> ${s.timeRange}
-            </li>`
-        )
-        .join("");
+        const slotHtml = slots
+          .map((s) => {
+            const courtName =
+              COURT_NAME_MAP[s.courtId.toString()] || "Court";
+            return `<li><b>${courtName}</b> | ${s.date} | ${s.timeRange}</li>`;
+          })
+          .join("");
 
-      await transporter.sendMail({
-        from: `Courtline <${process.env.GMAIL_USER}>`,
-        to: formData.email,
-        subject: "🎾 Court Booking Confirmed",
-        html: `
-          <h2>Hi ${formData.name},</h2>
-          <p>Your court booking is <b>confirmed</b> ✅</p>
-          <ul>${slotHtml}</ul>
-          <p><b>Total Paid:</b> ₹${totalPrice}</p>
-          <p>See you on the court! 🏸</p>
-          <p><b>Team Courtline</b></p>
-        `,
-      });
-      console.log("Email send.............")
-    } catch (mailErr) {
-      console.error("Email failed (booking safe):", mailErr.message);
-    }
+        await transporter.sendMail({
+          from: `Courtline <${process.env.GMAIL_USER_MAIL}>`,
+          to: formData.email,
+          subject: "🎾 Court Booking Confirmed",
+          html: `
+            <h2>Hi ${formData.name},</h2>
+            <p>Your booking is <b>confirmed</b> ✅</p>
+            <ul>${slotHtml}</ul>
+            <p><b>Total Paid:</b> ₹${totalPrice}</p>
+            <p>See you soon! 🏸</p>
+          `,
+        });
+      } catch (err) {
+        console.error("Email failed (booking safe):", err.message);
+      }
+    })();
 
-    /* -------------------------------------------------------
-       8️⃣ FINAL RESPONSE
-    ------------------------------------------------------- */
+    /* ----------------------------------
+       7️⃣ FINAL RESPONSE
+    ---------------------------------- */
     return res.json({ success: true, booking });
+
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
