@@ -5,6 +5,7 @@ import userRoutes from "./routes/userRoutes.js";
 
 import adminRoutes from "./routes/adminRoute.js";
 import tournamentRoutes from "./routes/tournamentRoute.js";
+import { razorpayWebhook } from "./controllers/usersController.js";
 const app = express();
 
 // Middleware
@@ -24,9 +25,32 @@ app.use(
     credentials: true, // allow cookies to be sent
   })
 );
+// app.use("/api/users/razorpay-webhook", bodyParser.raw({ type: "*/*" }));
+// app.post(
+//   "/api/users/razorpay-webhook",
+//   bodyParser.raw({ type: "application/json" }),
+//   razorpayWebhook
+// );
+// app.use("/api/users/razorpay-webhook", bodyParser.raw({ type: "*/*" }));
 
-app.use(bodyParser.json());
+app.post(
+  "/api/users/razorpay-webhook",
+  bodyParser.raw({ type: "application/json" }),
+  razorpayWebhook
+);
+// app.post(
+//   "/api/users/razorpay-webhook",
+//   bodyParser.raw({ type: "application/json" }),
+//   userRoutes
+// );
+
+// app.use(
+//   "/api/users/razorpay-webhook",
+//   express.raw({ type: "application/json" }),
+//   razorpayWebhook
+// );
 app.use(express.json());
+app.use(bodyParser.json());
 
 // Example route
 app.get("/", (req, res) => {
