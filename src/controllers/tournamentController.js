@@ -338,6 +338,49 @@ export const verifyTournamentPayment = async (req, res) => {
   }
 };
 
+
+export const tournamentrazorpayWebhook = async (req, res) => {
+  try {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(req.body)
+      .digest("hex");
+
+    const razorpaySignature = req.headers["x-razorpay-signature"];
+
+    if (expectedSignature !== razorpaySignature) {
+      return res.status(400).json({ message: "Invalid webhook signature" });
+    }
+
+    const payload = JSON.parse(req.body.toString());
+    const event = payload.event;
+
+    // ✅ PAYMENT SUCCESS
+    if (event === "payment.captured") {
+      const payment = payload.payload.payment.entity;
+      const orderId = payment.order_id;
+
+      const tournament = await Tournament.findOne({
+        "payment.orderId": orderId,
+      });
+
+      if (tournament && tournament.payment.status !== "PAID") {
+        tournament.payment.status = "PAID";
+        tournament.payment.paymentId = payment.id;
+        tournament.payment.paidAt = new Date();
+        await tournament.save();
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 /**
  * Admin listing
  */

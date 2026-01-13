@@ -6,6 +6,7 @@ import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoute.js";
 import tournamentRoutes from "./routes/tournamentRoute.js";
 import { razorpayWebhook } from "./controllers/usersController.js";
+import { tournamentrazorpayWebhook } from "./controllers/tournamentController.js";
 const app = express();
 
 // Middleware
@@ -38,6 +39,14 @@ app.post(
   bodyParser.raw({ type: "application/json" }),
   razorpayWebhook
 );
+
+
+app.post(
+  "/api/admin/tournament/webhook-razorpay",
+  express.raw({ type: "application/json" }),
+  tournamentrazorpayWebhook
+);
+
 // app.post(
 //   "/api/users/razorpay-webhook",
 //   bodyParser.raw({ type: "application/json" }),
